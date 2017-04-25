@@ -1,5 +1,15 @@
 = NMEA2000_mcp library for Arduino =
 
+'''
+*Modifications in this fork* +
+Added support for ESP8266-based boards. +
+Tested with https://www.adafruit.com/product/2471[Adafruit HUZZAH ESP8266 (ESP-12)] +
+
+Modifications: +
+- ESP8266 functions for controlling intterrupts differ, changes to `tNMEA2000_mcp::CANGetFrame(...)` and `tNMEA2000_mcp::CANSendFrame(...)`  
+
+'''
+
 Inherited object for use NMEA2000 library for Arduino Boards with
 MCP2515 CAN bus controller. See also NMEA2000 library.
 
