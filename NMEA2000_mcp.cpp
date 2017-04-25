@@ -80,11 +80,27 @@ tNMEA2000_mcp::tNMEA2000_mcp(unsigned char _N2k_CAN_CS_pin, unsigned char _N2k_C
 bool tNMEA2000_mcp::CANSendFrame(unsigned long id, unsigned char len, const unsigned char *buf, bool wait_sent) {
   INT8U result;
 
-    // Also sending should be changed to be done by interrupt. This requires modifications for mcp_can.
-    uint8_t SaveSREG = SREG;   // save interrupt flag
-    if ( UseInterrupt() ) cli();   // disable interrupts
-    result=N2kCAN.sendMsgBuf(id, 1, len, buf,wait_sent);
-    if ( UseInterrupt() ) SREG = SaveSREG;   // restore the interrupt flag
+    if ( UseInterrupt() ) {
+      // Also sending should be changed to be done by interrupt. This requires modifications for mcp_can.
+      #ifdef ESP8266
+      uint32_t savedPS = noInterrupts();   // save interrupt flag & disable interrupts
+      #else
+      uint8_t SaveSREG = SREG;   // save interrupt flag
+      cli();   // disable interrupts
+      #endif
+
+      result=N2kCAN.sendMsgBuf(id, 1, len, buf,wait_sent);
+
+      #ifdef ESP8266
+      xt_wsr_ps(savedPS);
+      #else
+      SREG = SaveSREG;   // restore the interrupt flag
+      #endif
+    } else {
+      result=N2kCAN.sendMsgBuf(id, 1, len, buf,wait_sent);
+
+    }
+
 //    Serial.println(result);
     return (result==CAN_OK); 
 }
@@ -114,8 +130,12 @@ bool tNMEA2000_mcp::CANGetFrame(unsigned long &id, unsigned char &len, unsigned 
   bool HasFrame=false;
 
     if ( UseInterrupt() ) {
+      #ifdef ESP8266
+      uint32_t savedPS = noInterrupts();   // save interrupt flag & disable interrupts
+      #else
       uint8_t SaveSREG = SREG;   // save interrupt flag
       cli();   // disable interrupts
+      #endif
       if (rx_buffer_read!=rx_buffer_write) {
 //        Serial.print("read: "); Serial.print(rx_buffer_read); Serial.print(", write: "); Serial.println(rx_buffer_write);
 
@@ -125,7 +145,11 @@ bool tNMEA2000_mcp::CANGetFrame(unsigned long &id, unsigned char &len, unsigned 
         rx_buffer_read = (rx_buffer_read + 1) % rx_frame_buf_size;
         HasFrame=( (id!=0) && (len!=0) );      
       }
+      #ifdef ESP8266
+      xt_wsr_ps(savedPS);
+      #else
       SREG = SaveSREG;   // restore the interrupt flag
+      #endif
     } else {
       if ( CAN_MSGAVAIL == N2kCAN.checkReceive() ) {           // check if data coming
           N2kCAN.readMsgBuf(&len, buf);    // read data,  len: data length, buf: data buf
